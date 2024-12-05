@@ -1,0 +1,23 @@
+[
+  {
+    "date": "2024-12-04",
+    "timeSlot": "08:00-13:00",
+    "username": "Anna",
+    "replace": true,
+    "userNumber": 2
+  },
+  {
+    "date": "2024-12-09",
+    "timeSlot": "13:00-18:00",
+    "username": "Niklas",
+    "replace": true,
+    "userNumber": 1
+  },
+  {
+    "date": "2024-12-12",
+    "timeSlot": "13:00-18:00",
+    "username": "Marte",
+    "replace": true,
+    "userNumber": 3
+  }
+]
