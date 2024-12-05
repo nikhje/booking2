@@ -39,20 +39,21 @@ function formatDate(dateStr) {
     }
 }
 
-// Get user number, create if doesn't exist
+// Get user number from username (now acting as password)
 async function getUserNumber(username) {
-    const data = await fs.readFile(USERS_FILE, 'utf8');
-    const users = JSON.parse(data);
-    
-    if (!users[username]) {
-        // Find the next available number
-        const numbers = Object.values(users);
-        const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-        users[username] = nextNum;
-        await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    try {
+        const usersData = await fs.readFile(USERS_FILE, 'utf8');
+        const users = JSON.parse(usersData);
+        
+        // Check if username exists in predefined users
+        if (users.hasOwnProperty(username)) {
+            return users[username];
+        } else {
+            throw new Error('Invalid user credentials');
+        }
+    } catch (error) {
+        throw new Error('Invalid user credentials');
     }
-    
-    return users[username];
 }
 
 // Get all bookings
@@ -147,68 +148,67 @@ function isWithinBookingWindow(dateStr) {
     return localCheckDate >= startOfToday && localCheckDate <= twoWeeksFromNow;
 }
 
+// Check if slot is already booked
+function isSlotBooked(bookings, date, timeSlot) {
+    return bookings.some(b => b.date === date && b.timeSlot === timeSlot);
+}
+
+// Check if user has booking within 14 days of target date
+function hasBookingInRange(bookings, username, targetDate) {
+    const target = new Date(targetDate);
+    return bookings.some(booking => {
+        if (booking.username !== username) return false;
+        const bookingDate = new Date(booking.date);
+        const daysDiff = Math.abs((target - bookingDate) / (1000 * 60 * 60 * 24));
+        return daysDiff <= 14;
+    });
+}
+
 // Add a new booking
 app.post('/api/bookings', async (req, res) => {
     try {
         console.log('Received booking request:', req.body);
         
-        // Check if date is within booking window
         if (!isWithinBookingWindow(req.body.date)) {
             return res.status(400).json({ error: 'Cannot book outside the two-week window' });
         }
 
-        const [bookingsData, userNumber] = await Promise.all([
-            fs.readFile(BOOKINGS_FILE, 'utf8'),
-            getUserNumber(req.body.username)
-        ]);
-        
+        let userNumber;
+        try {
+            userNumber = await getUserNumber(req.body.username);
+        } catch (error) {
+            return res.status(401).json({ error: 'Invalid user credentials' });
+        }
+
+        const bookingsData = await fs.readFile(BOOKINGS_FILE, 'utf8');
         const bookings = JSON.parse(bookingsData);
-        
-        const booking = {
-            ...req.body,
-            date: formatDate(req.body.date),
-            userNumber
-        };
-        
-        console.log('Processed booking:', booking);
 
-        // If replacing, remove ALL existing bookings within 14 days
+        if (isSlotBooked(bookings, req.body.date, req.body.timeSlot)) {
+            return res.status(400).json({ error: 'This slot is already booked' });
+        }
+
+        if (!req.body.replace && hasBookingInRange(bookings, req.body.username, req.body.date)) {
+            return res.json({ replace: true });
+        }
+
         if (req.body.replace) {
-            const bookingDate = new Date(booking.date);
-            const indices = [];
-            
-            bookings.forEach((b, index) => {
-                if (b.username === booking.username) {
-                    const existingDate = new Date(b.date);
-                    const daysDiff = Math.abs((bookingDate - existingDate) / (1000 * 60 * 60 * 24));
-                    if (daysDiff <= 14) {
-                        indices.push(index);
-                    }
-                }
-            });
-            
-            // Remove bookings from highest index to lowest to avoid shifting issues
-            indices.sort((a, b) => b - a).forEach(index => {
-                bookings.splice(index, 1);
-            });
+            const filteredBookings = bookings.filter(b => b.username !== req.body.username);
+            bookings.length = 0;
+            bookings.push(...filteredBookings);
         }
 
-        // Check if the slot is still available
-        const isSlotTaken = bookings.some(b => 
-            b.date === booking.date && 
-            b.timeSlot === booking.timeSlot
-        );
+        bookings.push({
+            date: req.body.date,
+            timeSlot: req.body.timeSlot,
+            username: req.body.username,
+            userNumber: userNumber
+        });
 
-        if (isSlotTaken) {
-            return res.status(400).json({ error: 'Time slot is no longer available' });
-        }
-
-        bookings.push(booking);
         await fs.writeFile(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
-        res.json(booking);
+        res.json({ success: true });
     } catch (error) {
-        console.error('Booking error:', error);
-        res.status(500).json({ error: 'Failed to save booking: ' + error.message });
+        console.error('Error adding booking:', error);
+        res.status(500).json({ error: 'Failed to add booking' });
     }
 });
 

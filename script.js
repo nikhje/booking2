@@ -29,8 +29,12 @@ function formatDate(date) {
 }
 
 function isSlotBooked(date, timeSlot) {
-    const dateStr = formatDate(date);
-    return bookings.find(b => b.date === dateStr && b.timeSlot === timeSlot);
+    const formattedDate = formatDate(date);
+    const booking = bookings.find(b => 
+        b.date === formattedDate && 
+        b.timeSlot === timeSlot
+    );
+    return booking || false;
 }
 
 function getWeekDates() {
@@ -128,9 +132,9 @@ function renderCalendar() {
                     cellClass += ' bg-light';
                 }
                 
-                html += `<td class="${cellClass}" ${(canBook && !isPast) ? `onclick="handleSlotClick('${formatDate(date)}', '${timeSlot}')"` : ''}>`;
+                html += `<td class="${cellClass}" ${(!booking && canBook && !isPast) ? `onclick="handleSlotClick('${formatDate(date)}', '${timeSlot}')"` : ''}>`;
                 if (booking) {
-                    html += `<div class="text-center">${booking.username}</div>`;
+                    html += `<div class="text-center">${booking.userNumber}</div>`;
                 }
                 html += '</td>';
             });
@@ -144,12 +148,44 @@ function renderCalendar() {
 }
 
 async function handleSlotClick(date, timeSlot) {
-    const username = document.getElementById('username').value;
+    const username = document.getElementById('username').value.trim();
     if (!username) {
-        alert('Please enter your name first');
+        alert('Please enter your credentials');
         return;
     }
 
+    try {
+        const response = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ date, timeSlot, username })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            if (response.status === 401) {
+                alert('Invalid credentials. Please check your user code.');
+            } else {
+                alert(data.error || 'Failed to make booking');
+            }
+            return;
+        }
+
+        const data = await response.json();
+        if (data.replace) {
+            await makeBooking(date, timeSlot, username, true);
+        } else {
+            await makeBooking(date, timeSlot, username, false);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to make booking');
+    }
+}
+
+async function makeBooking(date, timeSlot, username, replace) {
     const booking = {
         date: formatDate(new Date(date)),
         timeSlot: timeSlot,
