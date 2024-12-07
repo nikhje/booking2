@@ -1,27 +1,26 @@
 [
   {
-    "date": "2024-12-05",
-    "timeSlot": "08:00-13:00",
-    "username": "Marte",
-    "replace": true,
-    "userNumber": 3
-  },
-  {
     "date": "2024-12-06",
     "timeSlot": "18:00-22:00",
     "username": "Erik",
     "userNumber": 4
   },
   {
-    "date": "2024-12-12",
-    "timeSlot": "18:00-22:00",
-    "username": "Niklas",
-    "userNumber": 1
-  },
-  {
     "date": "2024-12-05",
     "timeSlot": "18:00-22:00",
     "username": "Anna",
     "userNumber": 2
+  },
+  {
+    "date": "2024-12-19",
+    "timeSlot": "08:00-13:00",
+    "username": "Marte",
+    "userNumber": 3
+  },
+  {
+    "date": "2024-12-13",
+    "timeSlot": "13:00-18:00",
+    "username": "Niklas",
+    "userNumber": 1
   }
 ]
