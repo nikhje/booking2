@@ -1,6 +1,7 @@
 {
   "name": "booking-system",
   "version": "1.0.0",
+  "type": "module",
   "description": "Shared booking system",
   "main": "server.js",
   "scripts": {
